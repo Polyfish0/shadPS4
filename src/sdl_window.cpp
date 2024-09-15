@@ -5,6 +5,9 @@
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_video.h>
+#include <SDL3/SDL_timer.h>
+#include <thread>
+#include <chrono>
 #include "common/assert.h"
 #include "common/config.h"
 #include "common/version.h"
@@ -41,6 +44,10 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, Input::GameController* controller_
     if (window == nullptr) {
         UNREACHABLE_MSG("Failed to create window handle: {}", SDL_GetError());
     }
+
+    UPDATE_MOUSE_VISIBILITY_EVENT = SDL_RegisterEvents(1);
+    std::thread mouse_worker(&WindowSDL::updateMouseVisibility, this);
+    mouse_worker.detach();
 
     SDL_SetWindowFullscreen(window, Config::isFullscreenMode());
 
@@ -85,6 +92,10 @@ void WindowSDL::waitEvent() {
         return;
     }
 
+    if (event.type == UPDATE_MOUSE_VISIBILITY_EVENT) {
+        is_mouse_visible ? SDL_ShowCursor() : SDL_HideCursor();
+    }
+
     switch (event.type) {
     case SDL_EVENT_WINDOW_RESIZED:
     case SDL_EVENT_WINDOW_MAXIMIZED:
@@ -115,6 +126,33 @@ void WindowSDL::waitEvent() {
         break;
     default:
         break;
+    }
+}
+
+void WindowSDL::updateMouseVisibility() {
+    float mouse_x, mouse_y;
+
+    SDL_Event event;
+    SDL_memset(&event, 0, sizeof(event));
+    event.type = UPDATE_MOUSE_VISIBILITY_EVENT;
+
+    while (is_open) {
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+
+        if (mouse_x != last_mouse_x || mouse_y != last_mouse_y) {
+            last_mouse_move_time = SDL_GetTicks();
+            last_mouse_x = mouse_x;
+            last_mouse_y = mouse_y;
+
+            if (is_mouse_visible)
+                continue;
+
+            is_mouse_visible = true;
+            SDL_PushEvent(&event);
+        }else if (is_mouse_visible && SDL_GetTicks() - last_mouse_move_time > mouse_hide_delay) {
+            is_mouse_visible = false;
+            SDL_PushEvent(&event);
+        }
     }
 }
 

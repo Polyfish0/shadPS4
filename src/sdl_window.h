@@ -72,6 +72,7 @@ private:
     void onResize();
     void onKeyPress(const SDL_Event* event);
     void onGamepadEvent(const SDL_Event* event);
+    void updateMouseVisibility();
 
     int sdlGamepadToOrbisButton(u8 button);
 
@@ -83,6 +84,12 @@ private:
     SDL_Window* window{};
     bool is_shown{};
     bool is_open{true};
+    bool is_mouse_visible{false};
+    s32 last_mouse_x;
+    s32 last_mouse_y;
+    s32 last_mouse_move_time;
+    s32 mouse_hide_delay{3000};
+    u32 UPDATE_MOUSE_VISIBILITY_EVENT;
 };
 
 } // namespace Frontend
